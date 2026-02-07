@@ -3,10 +3,17 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
-	"time"
+)
+
+const basePath = "/dev/shm"
+
+var (
+	streamPath   = path.Join(basePath, "stream")
+	playlistPath = path.Join(streamPath, "playlist.m3u8")
 )
 
 func main() {
@@ -14,17 +21,23 @@ func main() {
 	fmt.Println("Starting streaming...")
 	go startStream()
 
-	// TODO: remove, just for initial quick manual testing
-	time.Sleep(20 * time.Second)
+	http.Handle("/segments/", http.StripPrefix("/segments/", http.FileServer(http.Dir(streamPath))))
+	http.HandleFunc("/", playlist)
+
+	fmt.Println("Starting server...")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("Cannot start server: %v", err)
+	}
+
+	// TODO: stop stream process on exit
+	// TODO: stop stream process after a while of inactivity and restart it on first request
 }
 
 func startStream() {
-	basePath := "/dev/shm"
 	if _, err := os.Stat(basePath); err != nil {
 		log.Fatalf("%s cannot be accessed, but is required for the program to run", basePath)
 	}
 
-	streamPath := path.Join(basePath, "stream")
 	if err := os.MkdirAll(streamPath, 0o755); err != nil {
 		log.Fatalf("Cannot create directory: %s", streamPath)
 	}
@@ -42,10 +55,21 @@ func startStream() {
 		"-hls_time", "1",
 		"-hls_list_size", "3",
 		"-hls_flags", "delete_segments",
-		path.Join(streamPath, "stream.m3u8"),
+		"-hls_base_url", "/segments/",
+		playlistPath,
 	)
 
 	if err := cmd.Run(); err != nil {
-		log.Fatal("Cannot run streaming process")
+		log.Fatalf("Cannot run streaming proces: %v", err)
 	}
+}
+
+func playlist(w http.ResponseWriter, r *http.Request) {
+	if _, err := os.Stat(playlistPath); err != nil {
+		log.Printf("Stream not accessible: %v", err)
+		http.NotFound(w, r)
+		return
+	}
+
+	http.ServeFile(w, r, playlistPath)
 }
