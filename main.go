@@ -13,9 +13,10 @@ import (
 const basePath = "/dev/shm"
 
 var (
-	streamPath   = path.Join(basePath, "stream")
-	playlistPath = path.Join(streamPath, "playlist.m3u8")
-	keepAlive    = make(chan struct{})
+	streamPath    = path.Join(basePath, "stream")
+	playlistPath  = path.Join(streamPath, "playlist.m3u8")
+	keepAlive     = make(chan struct{})
+	streamRunning = make(chan struct{})
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	fmt.Println("Starting streaming...")
 
 	quit := make(chan struct{})
-	go runStream(keepAlive, quit)
+	go runStream(keepAlive, streamRunning, quit)
 	defer func() { quit <- struct{}{} }()
 
 	http.Handle("/segments/", http.StripPrefix("/segments/", http.FileServer(http.Dir(streamPath))))
@@ -37,7 +38,7 @@ func main() {
 	// TODO: handle Ctrl+C signal gracefully
 }
 
-func runStream(keepAlive <-chan struct{}, quit <-chan struct{}) {
+func runStream(keepAlive <-chan struct{}, running chan<- struct{}, quit <-chan struct{}) {
 	done := make(chan error, 1)
 	var streamProcess *os.Process
 	for {
@@ -46,6 +47,7 @@ func runStream(keepAlive <-chan struct{}, quit <-chan struct{}) {
 			if streamProcess == nil {
 				streamProcess = startStream(done)
 			}
+			running <- struct{}{}
 		case err := <-done:
 			streamProcess = nil
 			if err != nil {
@@ -97,6 +99,10 @@ func startStream(done chan<- error) *os.Process {
 		log.Fatalf("Cannot start streaming proces: %v", err)
 	}
 
+	// TODO: Consider more reliable solution than sleeping
+	// Wait for the actual streaming to start
+	time.Sleep(5 * time.Second)
+
 	go func() {
 		done <- cmd.Wait()
 		if err := os.RemoveAll(streamPath); err != nil {
@@ -109,7 +115,7 @@ func startStream(done chan<- error) *os.Process {
 
 func playlist(w http.ResponseWriter, r *http.Request) {
 	keepAlive <- struct{}{}
-	// TODO: wait for process to start to prevent from 404 on first request
+	<-streamRunning
 
 	if _, err := os.Stat(playlistPath); err != nil {
 		log.Printf("Stream not accessible: %v", err)
