@@ -45,7 +45,11 @@ func runStream(keepAlive <-chan struct{}, running chan<- struct{}, quit <-chan s
 		select {
 		case <-keepAlive:
 			if streamProcess == nil {
-				streamProcess = startStream(done)
+				var err error
+				streamProcess, err = startStream(done)
+				if err != nil {
+					log.Fatalf("Cannot start stream process: %v", err)
+				}
 			}
 			running <- struct{}{}
 		case err := <-done:
@@ -71,13 +75,16 @@ func runStream(keepAlive <-chan struct{}, running chan<- struct{}, quit <-chan s
 	}
 }
 
-func startStream(done chan<- error) *os.Process {
+func startStream(done chan error) (*os.Process, error) {
+	// Cleanup before start
+	removeStreamDirectory()
+
 	if _, err := os.Stat(basePath); err != nil {
-		log.Fatalf("%s cannot be accessed, but is required for the program to run", basePath)
+		return nil, fmt.Errorf("%s cannot be accessed, but is required for the program to run: %v", basePath, err)
 	}
 
 	if err := os.MkdirAll(streamPath, 0o755); err != nil {
-		log.Fatalf("Cannot create directory: %s", streamPath)
+		return nil, fmt.Errorf("cannot create directory %s: %v", streamPath, err)
 	}
 
 	cmd := exec.Command(
@@ -96,32 +103,42 @@ func startStream(done chan<- error) *os.Process {
 	)
 
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("Cannot start streaming proces: %v", err)
+		return nil, fmt.Errorf("cannot start streaming process: %v", err)
 	}
-
-	// TODO: Consider more reliable solution than sleeping
-	// Wait for the actual streaming to start
-	time.Sleep(5 * time.Second)
 
 	go func() {
 		done <- cmd.Wait()
-		if err := os.RemoveAll(streamPath); err != nil {
-			log.Printf("Couldn't remove stream directory: %v", err)
-		}
+		removeStreamDirectory()
 	}()
 
-	return cmd.Process
+	// Wait until playlist file and at least 3 video segments are created
+	ticker := time.NewTicker(200 * time.Millisecond)
+	for {
+		select {
+		case err := <-done:
+			return nil, fmt.Errorf("cannot start streaming process: %w", err)
+		case <-ticker.C:
+			entries, err := os.ReadDir(streamPath)
+			if err != nil {
+				return nil, fmt.Errorf("cannot list files in the stream directory: %v", err)
+			}
+
+			if len(entries) >= 4 {
+				return cmd.Process, nil
+			}
+		}
+	}
+}
+
+func removeStreamDirectory() {
+	if err := os.RemoveAll(streamPath); err != nil {
+		log.Printf("Couldn't remove stream directory: %v", err)
+	}
 }
 
 func playlist(w http.ResponseWriter, r *http.Request) {
 	keepAlive <- struct{}{}
 	<-streamRunning
-
-	if _, err := os.Stat(playlistPath); err != nil {
-		log.Printf("Stream not accessible: %v", err)
-		http.NotFound(w, r)
-		return
-	}
 
 	http.ServeFile(w, r, playlistPath)
 }
