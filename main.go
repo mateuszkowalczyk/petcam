@@ -12,6 +12,7 @@ import (
 const (
 	basePath   = "/dev/shm"
 	hlsBaseURL = "/segments/"
+	address    = ":8080"
 )
 
 var (
@@ -20,27 +21,22 @@ var (
 )
 
 func main() {
-	fmt.Println("This is petcam 🐶🐱")
-	fmt.Println("Starting streaming...")
+	fmt.Println("this is petcam 🐶🐱")
 
 	streamer := streamer.NewStreamer(streamPath, playlistPath, hlsBaseURL)
 	streamer.Start()
 	defer streamer.Stop()
 
 	http.Handle(hlsBaseURL, http.StripPrefix(hlsBaseURL, http.FileServer(http.Dir(streamPath))))
-	http.HandleFunc("/", playlist)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		streamer.EnsureStreaming()
+		http.ServeFile(w, r, playlistPath)
+	})
 
-	fmt.Println("Starting server...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("Cannot start server: %v", err)
+	fmt.Printf("listening on: %v\n", address)
+	if err := http.ListenAndServe(address, nil); err != nil {
+		log.Fatalf("cannot start server: %v\n", err)
 	}
 
 	// TODO: handle Ctrl+C signal gracefully
-}
-
-func playlist(w http.ResponseWriter, r *http.Request) {
-	keepAlive <- struct{}{}
-	<-streamRunning
-
-	http.ServeFile(w, r, playlistPath)
 }
