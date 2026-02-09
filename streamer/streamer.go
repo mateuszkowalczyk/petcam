@@ -34,9 +34,9 @@ func NewStreamer(streamPath, playlistPath, hlsBaseURL string) *Streamer {
 
 		// TODO: improve channels naming
 		keepAlive:     make(chan struct{}),
-		streaming:     make(chan struct{}),
+		streaming:     make(chan struct{}, 1),
 		streamingDone: make(chan error, 1),
-		quit:          make(chan struct{}),
+		quit:          make(chan struct{}, 1),
 	}
 }
 
