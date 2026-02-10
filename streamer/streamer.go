@@ -20,10 +20,10 @@ type Streamer struct {
 	playlistPath string
 	hlsBaseURL   string
 
-	keepAlive     chan struct{} // Receives signals to keep stream active
-	streaming     chan struct{} // Signals when streaming is ready (buffered)
-	streamingDone chan error    // Receives FFmpeg process exit status (buffered)
-	quit          chan struct{} // Signals goroutine to stop (buffered)
+	keepAlive      chan struct{} // Receives signals to keep stream active
+	streamingAlive chan struct{} // Signals when streaming is ready in response to keepAlive (buffered)
+	streamingDone  chan error    // Receives FFmpeg process exit status (buffered)
+	quit           chan struct{} // Signals goroutine to stop (buffered)
 }
 
 func NewStreamer(streamPath, playlistPath, hlsBaseURL string) *Streamer {
@@ -32,10 +32,10 @@ func NewStreamer(streamPath, playlistPath, hlsBaseURL string) *Streamer {
 		playlistPath: playlistPath,
 		hlsBaseURL:   hlsBaseURL,
 
-		keepAlive:     make(chan struct{}),
-		streaming:     make(chan struct{}, 1),
-		streamingDone: make(chan error, 1),
-		quit:          make(chan struct{}, 1),
+		keepAlive:      make(chan struct{}),
+		streamingAlive: make(chan struct{}, 1),
+		streamingDone:  make(chan error, 1),
+		quit:           make(chan struct{}, 1),
 	}
 }
 
@@ -55,7 +55,7 @@ func (s *Streamer) Stop() {
 // Blocks until streaming is established. It must be called after Start.
 func (s *Streamer) EnsureStreaming() {
 	s.keepAlive <- struct{}{}
-	<-s.streaming
+	<-s.streamingAlive
 }
 
 // streamLoop manages the streaming process lifecycle, handling:
@@ -77,7 +77,7 @@ func (s *Streamer) streamLoop() {
 					log.Fatalf("cannot start streaming process: %v\n", err)
 				}
 			}
-			s.streaming <- struct{}{}
+			s.streamingAlive <- struct{}{}
 		case <-time.After(30 * time.Second):
 			if streamProcess != nil {
 				log.Println("stopping streaming process due to inactivity...")
