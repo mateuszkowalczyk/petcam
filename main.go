@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/mateuszkowalczyk/petcam/streamer"
 )
@@ -25,7 +28,6 @@ func main() {
 
 	streamer := streamer.NewStreamer(streamPath, playlistPath, hlsBaseURL)
 	streamer.Start()
-	defer streamer.Stop()
 
 	http.Handle(hlsBaseURL, http.StripPrefix(hlsBaseURL, http.FileServer(http.Dir(streamPath))))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -33,10 +35,18 @@ func main() {
 		http.ServeFile(w, r, playlistPath)
 	})
 
+	go func() {
+		if err := http.ListenAndServe(address, nil); err != nil {
+			streamer.Stop()
+			log.Fatalf("server error: %v\n", err)
+		}
+	}()
 	fmt.Printf("listening on: %v\n", address)
-	if err := http.ListenAndServe(address, nil); err != nil {
-		log.Fatalf("cannot start server: %v\n", err)
-	}
 
-	// TODO: handle Ctrl+C signal gracefully
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+
+	fmt.Println("shutting down...")
+	streamer.Stop()
 }

@@ -46,7 +46,9 @@ func (s *Streamer) Start() {
 
 // Stop terminates the streaming process, stops the streaming loop and cleans up resources.
 func (s *Streamer) Stop() {
+	// TODO: check if streamer is running before sending to `quit` channel
 	s.quit <- struct{}{}
+	<-s.streamingDone
 }
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
@@ -131,8 +133,9 @@ func (s *Streamer) startStream() (*os.Process, error) {
 	}
 
 	go func() {
-		s.streamingDone <- cmd.Wait()
+		err := cmd.Wait()
 		s.removeStreamDirectory()
+		s.streamingDone <- err
 	}()
 
 	// Wait until playlist file and all initial video segments are created
