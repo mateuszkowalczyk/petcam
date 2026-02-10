@@ -5,37 +5,31 @@ package streamer
 // TODO: add information about hardware acceleration after replacing streaming command with real one
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"strconv"
 	"time"
 )
 
 const hlsListSize = 3
 
 type Streamer struct {
-	streamPath   string
-	playlistPath string
-	hlsBaseURL   string
+	settings Settings
+
+	process *process
 
 	keepAlive      chan struct{} // Receives signals to keep stream active
 	streamingAlive chan struct{} // Signals when streaming is ready in response to keepAlive (buffered)
-	streamingDone  chan error    // Receives FFmpeg process exit status (buffered)
-	quit           chan struct{} // Signals goroutine to stop (buffered)
+	quit           chan struct{} // Signals stream loop to stop
 }
 
-func NewStreamer(streamPath, playlistPath, hlsBaseURL string) *Streamer {
+func NewStreamer(settings Settings) *Streamer {
 	return &Streamer{
-		streamPath:   streamPath,
-		playlistPath: playlistPath,
-		hlsBaseURL:   hlsBaseURL,
+		settings: settings,
+
+		process: nil,
 
 		keepAlive:      make(chan struct{}),
 		streamingAlive: make(chan struct{}, 1),
-		streamingDone:  make(chan error, 1),
-		quit:           make(chan struct{}, 1),
+		quit:           make(chan struct{}),
 	}
 }
 
@@ -46,9 +40,11 @@ func (s *Streamer) Start() {
 
 // Stop terminates the streaming process, stops the streaming loop and cleans up resources.
 func (s *Streamer) Stop() {
-	// TODO: check if streamer is running before sending to `quit` channel
+	if s.process != nil {
+		s.process.Stop()
+	}
+
 	s.quit <- struct{}{}
-	<-s.streamingDone
 }
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
@@ -64,101 +60,34 @@ func (s *Streamer) EnsureStreaming() {
 // - Process exit monitoring
 // - Shutdown on quit signal
 func (s *Streamer) streamLoop() {
-	var streamProcess *os.Process
-
 	for {
 		select {
 		case <-s.keepAlive:
-			if streamProcess == nil {
+			if s.process == nil {
 				log.Println("starting streaming process...")
-				var err error
-				streamProcess, err = s.startStream()
-				if err != nil {
+				s.process = NewProcess(s.settings)
+				if err := s.process.Start(); err != nil {
 					log.Fatalf("cannot start streaming process: %v\n", err)
 				}
 			}
 			s.streamingAlive <- struct{}{}
 		case <-time.After(30 * time.Second):
-			if streamProcess != nil {
+			if s.process != nil {
 				log.Println("stopping streaming process due to inactivity...")
-				if err := streamProcess.Kill(); err != nil {
-					log.Printf("error while killing the streaming process: %v\n", err)
-				}
+				s.process.Stop()
 			}
-		case err := <-s.streamingDone:
-			streamProcess = nil
-			if err != nil {
-				log.Printf("error running streaming process: %v\n", err)
-			}
+		case <-s.processDone():
+			s.process = nil
 		case <-s.quit:
-			if streamProcess != nil {
-				if err := streamProcess.Kill(); err != nil {
-					log.Printf("error while killing the streaming process: %v\n", err)
-				}
-			}
 			return
 		}
 	}
 }
 
-// startStream starts FFmpeg and waits for the playlist and initial segments
-// to be created. Returns the process handle or an error if startup fails.
-// Blocks until hlsListSize+1 files exist in streamPath.
-// TODO: add information about Raspberry Pi cam process
-func (s *Streamer) startStream() (*os.Process, error) {
-	// Cleanup before start
-	s.removeStreamDirectory()
-
-	if err := os.MkdirAll(s.streamPath, 0o755); err != nil {
-		return nil, fmt.Errorf("cannot create directory %s: %v", s.streamPath, err)
+func (s *Streamer) processDone() <-chan struct{} {
+	if s.process == nil {
+		return nil
 	}
 
-	cmd := exec.Command(
-		"ffmpeg",
-		"-f", "v4l2",
-		"-i", "/dev/video0",
-		"-c:v", "libx264",
-		"-preset", "veryfast",
-		"-tune", "zerolatency",
-		"-f", "hls",
-		"-hls_time", "1",
-		"-hls_list_size", strconv.Itoa(hlsListSize),
-		"-hls_flags", "delete_segments",
-		"-hls_base_url", s.hlsBaseURL,
-		s.playlistPath,
-	)
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("cannot start streaming process: %v", err)
-	}
-
-	go func() {
-		err := cmd.Wait()
-		s.removeStreamDirectory()
-		s.streamingDone <- err
-	}()
-
-	// Wait until playlist file and all initial video segments are created
-	ticker := time.NewTicker(200 * time.Millisecond)
-	for {
-		select {
-		case err := <-s.streamingDone:
-			return nil, fmt.Errorf("streaming process stopped unexpectedly: %w", err)
-		case <-ticker.C:
-			entries, err := os.ReadDir(s.streamPath)
-			if err != nil {
-				return nil, fmt.Errorf("cannot list files in the stream directory: %v", err)
-			}
-
-			if len(entries) >= hlsListSize+1 {
-				return cmd.Process, nil
-			}
-		}
-	}
-}
-
-func (s *Streamer) removeStreamDirectory() {
-	if err := os.RemoveAll(s.streamPath); err != nil {
-		log.Printf("couldn't remove stream directory: %v\n", err)
-	}
+	return s.process.Done()
 }

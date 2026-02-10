@@ -26,7 +26,12 @@ var (
 func main() {
 	fmt.Println("this is petcam 🐶🐱")
 
-	streamer := streamer.NewStreamer(streamPath, playlistPath, hlsBaseURL)
+	streamer := streamer.NewStreamer(
+		streamer.Settings{
+			StreamPath:   streamPath,
+			PlaylistPath: playlistPath,
+			HlsBaseURL:   hlsBaseURL,
+		})
 	streamer.Start()
 
 	http.Handle(hlsBaseURL, http.StripPrefix(hlsBaseURL, http.FileServer(http.Dir(streamPath))))
