@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path"
+	"path/filepath"
 
 	"github.com/mateuszkowalczyk/petcam/streamer"
 )
@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	streamPath   = path.Join(basePath, "stream")
-	playlistPath = path.Join(streamPath, "playlist.m3u8")
+	streamPath   = filepath.Join(basePath, "stream")
+	playlistPath = filepath.Join(streamPath, "playlist.m3u8")
 )
 
 func main() {

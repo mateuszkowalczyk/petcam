@@ -20,10 +20,10 @@ type Streamer struct {
 	playlistPath string
 	hlsBaseURL   string
 
-	keepAlive     chan struct{}
-	streaming     chan struct{}
-	streamingDone chan error
-	quit          chan struct{}
+	keepAlive     chan struct{} // Receives signals to keep stream active
+	streaming     chan struct{} // Signals when streaming is ready (buffered)
+	streamingDone chan error    // Receives FFmpeg process exit status (buffered)
+	quit          chan struct{} // Signals goroutine to stop (buffered)
 }
 
 func NewStreamer(streamPath, playlistPath, hlsBaseURL string) *Streamer {
@@ -32,7 +32,6 @@ func NewStreamer(streamPath, playlistPath, hlsBaseURL string) *Streamer {
 		playlistPath: playlistPath,
 		hlsBaseURL:   hlsBaseURL,
 
-		// TODO: improve channels naming
 		keepAlive:     make(chan struct{}),
 		streaming:     make(chan struct{}, 1),
 		streamingDone: make(chan error, 1),
@@ -57,6 +56,11 @@ func (s *Streamer) EnsureStreaming() {
 	<-s.streaming
 }
 
+// streamLoop manages the streaming process lifecycle, handling:
+// - Starting streaming process if not already running
+// - Inactivity timeout (killing streaming process after 30 seconds of no http request)
+// - Process exit monitoring
+// - Shutdown on quit signal
 func (s *Streamer) streamLoop() {
 	var streamProcess *os.Process
 
@@ -95,6 +99,10 @@ func (s *Streamer) streamLoop() {
 	}
 }
 
+// startStream starts FFmpeg and waits for the playlist and initial segments
+// to be created. Returns the process handle or an error if startup fails.
+// Blocks until hlsListSize+1 files exist in streamPath.
+// TODO: add information about Raspberry Pi cam process
 func (s *Streamer) startStream() (*os.Process, error) {
 	// Cleanup before start
 	s.removeStreamDirectory()
