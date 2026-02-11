@@ -6,6 +6,7 @@ package streamer
 
 import (
 	"log"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,7 @@ type Streamer struct {
 	streamingAlive chan struct{} // Signals when streaming is ready in response to keepAlive (buffered)
 	stop           chan struct{} // Signals stream loop to stop
 	stopped        chan struct{} // Signals when stream has been stopped
+	stopOnce       sync.Once
 }
 
 func NewStreamer(settings Settings) *Streamer {
@@ -42,7 +44,9 @@ func (s *Streamer) Start() {
 
 // Stop terminates the streaming process, stops the streaming loop and cleans up resources.
 func (s *Streamer) Stop() {
-	s.stop <- struct{}{}
+	s.stopOnce.Do(func() {
+		close(s.stop)
+	})
 }
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
