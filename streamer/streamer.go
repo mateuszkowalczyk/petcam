@@ -5,6 +5,7 @@ package streamer
 // TODO: add information about hardware acceleration after replacing streaming command with real one
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -21,7 +22,11 @@ type Streamer struct {
 	streamingAlive chan struct{} // Signals when streaming is ready in response to keepAlive (buffered)
 	stop           chan struct{} // Signals stream loop to stop
 	stopped        chan struct{} // Signals when stream has been stopped
-	stopOnce       sync.Once
+
+	stopOnce sync.Once
+	waitOnce sync.Once
+
+	err error // Stores error from stream loop
 }
 
 func NewStreamer(settings Settings) *Streamer {
@@ -43,10 +48,21 @@ func (s *Streamer) Start() {
 }
 
 // Stop terminates the streaming process, stops the streaming loop and cleans up resources.
+// Blocks until cleanup is complete.
 func (s *Streamer) Stop() {
 	s.stopOnce.Do(func() {
 		close(s.stop)
+		<-s.stopped
 	})
+}
+
+// Wait blocks until the streamer has stopped and returns any error that occurred.
+// It is safe to call Wait multiple times; only the first call will block.
+func (s *Streamer) Wait() error {
+	s.waitOnce.Do(func() {
+		<-s.stopped
+	})
+	return s.err
 }
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
@@ -69,7 +85,9 @@ func (s *Streamer) streamLoop() {
 				log.Println("starting streaming process...")
 				s.process = NewProcess(s.settings)
 				if err := s.process.Start(); err != nil {
-					log.Fatalf("cannot start streaming process: %v\n", err)
+					s.err = fmt.Errorf("cannot start streaming process: %w", err)
+					close(s.stopped)
+					return
 				}
 			}
 			s.streamingAlive <- struct{}{}

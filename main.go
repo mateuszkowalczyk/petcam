@@ -34,6 +34,12 @@ func main() {
 		})
 	streamer.Start()
 
+	go func() {
+		if err := streamer.Wait(); err != nil {
+			log.Fatalf("streamer error: %v\n", err)
+		}
+	}()
+
 	http.Handle(hlsBaseURL, http.StripPrefix(hlsBaseURL, http.FileServer(http.Dir(streamPath))))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		streamer.EnsureStreaming()
