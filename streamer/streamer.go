@@ -35,7 +35,7 @@ func NewStreamer(settings Settings) *Streamer {
 
 		process: nil,
 
-		keepAlive:      make(chan struct{}),
+		keepAlive:      make(chan struct{}, 1),
 		streamingAlive: make(chan struct{}, 1),
 		stop:           make(chan struct{}),
 		stopped:        make(chan struct{}, 1),
@@ -67,16 +67,20 @@ func (s *Streamer) Wait() error {
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
 // Blocks until streaming is established. It must be called after Start.
+// Returns immediately if Stop() has been called.
 func (s *Streamer) EnsureStreaming() {
 	s.keepAlive <- struct{}{}
-	<-s.streamingAlive
+	select {
+	case <-s.streamingAlive:
+	case <-s.stop:
+	}
 }
 
 // streamLoop manages the streaming process lifecycle, handling:
 // - Starting streaming process if not already running
 // - Inactivity timeout (killing streaming process after 30 seconds of no http request)
 // - Process exit monitoring
-// - Shutdown on quit signal
+// - Shutdown on stop signal
 func (s *Streamer) streamLoop() {
 	for {
 		select {
@@ -102,7 +106,7 @@ func (s *Streamer) streamLoop() {
 			if s.process != nil {
 				s.process.Stop()
 			}
-			s.stopped <- struct{}{}
+			close(s.stopped)
 			return
 		}
 	}
