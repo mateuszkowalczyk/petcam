@@ -18,7 +18,8 @@ type Streamer struct {
 
 	keepAlive      chan struct{} // Receives signals to keep stream active
 	streamingAlive chan struct{} // Signals when streaming is ready in response to keepAlive (buffered)
-	quit           chan struct{} // Signals stream loop to stop
+	stop           chan struct{} // Signals stream loop to stop
+	stopped        chan struct{} // Signals when stream has been stopped
 }
 
 func NewStreamer(settings Settings) *Streamer {
@@ -29,7 +30,8 @@ func NewStreamer(settings Settings) *Streamer {
 
 		keepAlive:      make(chan struct{}),
 		streamingAlive: make(chan struct{}, 1),
-		quit:           make(chan struct{}),
+		stop:           make(chan struct{}),
+		stopped:        make(chan struct{}, 1),
 	}
 }
 
@@ -40,11 +42,7 @@ func (s *Streamer) Start() {
 
 // Stop terminates the streaming process, stops the streaming loop and cleans up resources.
 func (s *Streamer) Stop() {
-	if s.process != nil {
-		s.process.Stop()
-	}
-
-	s.quit <- struct{}{}
+	s.stop <- struct{}{}
 }
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
@@ -78,7 +76,11 @@ func (s *Streamer) streamLoop() {
 			}
 		case <-s.processDone():
 			s.process = nil
-		case <-s.quit:
+		case <-s.stop:
+			if s.process != nil {
+				s.process.Stop()
+			}
+			s.stopped <- struct{}{}
 			return
 		}
 	}
