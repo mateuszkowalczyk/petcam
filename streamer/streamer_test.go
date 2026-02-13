@@ -12,7 +12,6 @@ import (
 // TestSingleUserFlow verifies the default scenario:
 // User connects → stream starts → disconnect → timeout → process stops
 func TestSingleUserFlow(t *testing.T) {
-	// Create temp dir for fake FFmpeg and stream output
 	tempDir := t.TempDir()
 
 	// Create a fake FFmpeg that creates 4 segment files and stays running
@@ -29,10 +28,8 @@ sleep 300
 `
 	fakeCmd := createFakeFFmpeg(t, tempDir, fakeScript)
 
-	// Create settings with 100ms timeout for fast testing
 	settings := createTestSettings(t, fakeCmd)
 
-	// Create and start streamer
 	s := NewStreamer(settings)
 	s.Start()
 
@@ -49,10 +46,8 @@ sleep 300
 	// Wait for inactivity timeout (100ms in tests)
 	time.Sleep(150 * time.Millisecond)
 
-	// Stop the streamer and verify clean shutdown
 	s.Stop()
 
-	// Verify no errors occurred
 	if err := s.Wait(); err != nil {
 		t.Fatalf("streamer reported error: %v", err)
 	}
@@ -97,7 +92,6 @@ sleep 300
 		Command:           fakeCmd,
 	}
 
-	// Create and start streamer
 	s := NewStreamer(settings)
 	s.Start()
 
@@ -105,7 +99,7 @@ sleep 300
 	var wg sync.WaitGroup
 	errors := make(chan error, 5)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
@@ -113,7 +107,6 @@ sleep 300
 		}(i)
 	}
 
-	// Wait for all goroutines to complete
 	wg.Wait()
 	close(errors)
 
@@ -143,7 +136,6 @@ sleep 300
 		t.Fatalf("segment file not created, stream didn't start properly")
 	}
 
-	// Clean shutdown
 	s.Stop()
 	if err := s.Wait(); err != nil {
 		t.Fatalf("streamer reported error: %v", err)
@@ -154,7 +146,6 @@ sleep 300
 // within the inactivity timeout period, the same process continues running.
 // This is the "user refreshes page quickly" scenario.
 func TestUserReconnectBeforeTimeout(t *testing.T) {
-	// Create temp dir for fake FFmpeg and stream output
 	tempDir := t.TempDir()
 	pidFile := filepath.Join(tempDir, "process.pid")
 
@@ -210,6 +201,74 @@ sleep 300
 
 	if firstPID != secondPID {
 		t.Errorf("process was restarted on reconnect (PID changed from %s to %s)", firstPID, secondPID)
+	}
+
+	s.Stop()
+	if err := s.Wait(); err != nil {
+		t.Fatalf("streamer reported error: %v", err)
+	}
+}
+
+// TestUserReconnectAfterTimeout verifies that when a user reconnects
+// AFTER the inactivity timeout period, a NEW process is started.
+// This is the "user returns after a break" scenario.
+func TestUserReconnectAfterTimeout(t *testing.T) {
+	tempDir := t.TempDir()
+	pidFile := filepath.Join(tempDir, "process.pid")
+
+	// Create a fake FFmpeg that writes its PID and timestamp on startup
+	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
+STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+mkdir -p "$STREAM_DIR"
+touch "$STREAM_DIR/segment_0.ts"
+touch "$STREAM_DIR/segment_1.ts"
+touch "$STREAM_DIR/segment_2.ts"
+touch "$STREAM_DIR/segment_3.ts"
+echo "$(date +%%s):$$" >> "%s"
+sleep 300
+`, pidFile)
+	fakeCmd := createFakeFFmpeg(t, tempDir, fakeScript)
+
+	settings := Settings{
+		StreamPath:        filepath.Join(tempDir, "stream"),
+		PlaylistPath:      filepath.Join(tempDir, "stream", "playlist.m3u8"),
+		HlsBaseURL:        "/segments/",
+		InactivityTimeout: 100 * time.Millisecond,
+		Command:           fakeCmd,
+	}
+
+	s := NewStreamer(settings)
+	s.Start()
+
+	// First connection - start the stream
+	s.EnsureStreaming()
+
+	// Verify process started and get first PID
+	if err := waitForFile(t, pidFile, 500*time.Millisecond); err != nil {
+		t.Fatalf("stream didn't start, PID file not created: %v", err)
+	}
+	firstPIDData, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("could not read PID file: %v", err)
+	}
+	firstPID := string(firstPIDData)
+
+	// User disconnects - wait LONGER than timeout (150ms > 100ms)
+	// This should trigger process termination due to inactivity
+	time.Sleep(150 * time.Millisecond)
+
+	// User reconnects (AFTER timeout - should start NEW process)
+	s.EnsureStreaming()
+
+	// Verify a NEW process was started (different PID/timestamp)
+	secondPIDData, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("could not read PID file on reconnect: %v", err)
+	}
+	secondPID := string(secondPIDData)
+
+	if firstPID == secondPID {
+		t.Errorf("expected new process after timeout, but got same process data (old: %s, new: %s)", firstPID, secondPID)
 	}
 
 	s.Stop()
