@@ -276,3 +276,62 @@ sleep 300
 		t.Fatalf("streamer reported error: %v", err)
 	}
 }
+
+// TestAppShutdownWhileStreaming verifies clean shutdown when Stop() is called
+// while streaming is active. This simulates receiving SIGTERM during streaming.
+func TestAppShutdownWhileStreaming(t *testing.T) {
+	tempDir := t.TempDir()
+	pidFile := filepath.Join(tempDir, "process.pid")
+
+	// Create a fake FFmpeg that writes its PID and stays running
+	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
+STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+mkdir -p "$STREAM_DIR"
+touch "$STREAM_DIR/segment_0.ts"
+touch "$STREAM_DIR/segment_1.ts"
+touch "$STREAM_DIR/segment_2.ts"
+touch "$STREAM_DIR/segment_3.ts"
+echo $$ > "%s"
+sleep 300
+`, pidFile)
+	fakeCmd := createFakeFFmpeg(t, tempDir, fakeScript)
+
+	settings := Settings{
+		StreamPath:        filepath.Join(tempDir, "stream"),
+		PlaylistPath:      filepath.Join(tempDir, "stream", "playlist.m3u8"),
+		HlsBaseURL:        "/segments/",
+		InactivityTimeout: 10 * time.Second,
+		Command:           fakeCmd,
+	}
+
+	s := NewStreamer(settings)
+	s.Start()
+
+	s.EnsureStreaming()
+
+	if err := waitForFile(t, pidFile, 500*time.Millisecond); err != nil {
+		t.Fatalf("stream didn't start: %v", err)
+	}
+
+	// Simulate app shutdown (SIGTERM) - call Stop() while streaming is active
+	// This should gracefully terminate the process
+	done := make(chan struct{})
+	var stopErr error
+	go func() {
+		s.Stop()
+		stopErr = s.Wait()
+		close(done)
+	}()
+
+	// Stop should complete within reasonable time (not hang)
+	select {
+	case <-done:
+		// Good - Stop() completed
+	case <-time.After(2 * time.Second):
+		t.Fatal("Stop() timed out - possible deadlock or hanging process")
+	}
+
+	if stopErr != nil {
+		t.Fatalf("streamer reported error during shutdown: %v", stopErr)
+	}
+}
