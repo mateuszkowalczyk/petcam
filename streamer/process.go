@@ -20,6 +20,10 @@ type process struct {
 }
 
 func NewProcess(settings Settings) *process {
+	if settings.Command == "" {
+		settings.Command = "ffmpeg"
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &process{
@@ -41,7 +45,7 @@ func (p *process) Start() error {
 
 	cmd := exec.CommandContext(
 		p.ctx,
-		"ffmpeg",
+		p.settings.Command,
 		"-f", "v4l2",
 		"-i", "/dev/video0",
 		"-c:v", "libx264",

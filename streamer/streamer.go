@@ -95,7 +95,7 @@ func (s *Streamer) streamLoop() {
 				}
 			}
 			s.streamingAlive <- struct{}{}
-		case <-time.After(30 * time.Second):
+		case <-time.After(s.settings.InactivityTimeout):
 			if s.process != nil {
 				log.Println("stopping streaming process due to inactivity...")
 				s.process.Stop()

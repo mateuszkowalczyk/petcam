@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/mateuszkowalczyk/petcam/streamer"
 )
@@ -28,9 +29,10 @@ func main() {
 
 	streamer := streamer.NewStreamer(
 		streamer.Settings{
-			StreamPath:   streamPath,
-			PlaylistPath: playlistPath,
-			HlsBaseURL:   hlsBaseURL,
+			StreamPath:        streamPath,
+			PlaylistPath:      playlistPath,
+			HlsBaseURL:        hlsBaseURL,
+			InactivityTimeout: 30 * time.Second,
 		})
 	streamer.Start()
 
