@@ -3,3 +3,6 @@ all:
 	scp petcam mk@rpi:~/
 	rm petcam
 
+test:
+	go test -race ./...
+
