@@ -1,11 +1,19 @@
-all:
+REMOTE_USER ?= mk
+REMOTE_HOST ?= rpi
+REMOTE = $(REMOTE_USER)@$(REMOTE_HOST)
+
+.PHONY: all dev run clean test
+
+all: build-arm deploy clean
+
+build-arm:
 	cp scripts/stream_pi.sh scripts/stream.sh
 	GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o petcam
-	ssh mk@rpi mkdir -p ~/petcam/scripts
-	scp petcam mk@rpi:~/petcam/
-	scp scripts/stream.sh mk@rpi:~/petcam/scripts/
-	rm petcam
-	rm -f scripts/stream.sh
+
+deploy:
+	ssh $(REMOTE) mkdir -p ~/petcam/scripts
+	scp petcam $(REMOTE):~/petcam/
+	scp scripts/stream.sh $(REMOTE):~/petcam/scripts/
 
 dev:
 	cp scripts/stream_dev.sh scripts/stream.sh

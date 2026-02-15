@@ -18,6 +18,10 @@ make clean                   # Removes petcam and scripts/stream.sh
 # Build for ARM Linux (Raspberry Pi deployment) - uses rpicam-vid
 make                         # Builds ARM binary, deploys to rpi:~/petcam/, cleans up locally
 
+# Deploy to a different remote host or user
+make REMOTE_HOST=pi REMOTE_USER=pi    # Deploy to pi@pi instead of default mk@rpi
+# Or set environment variables: REMOTE_HOST=pi REMOTE_USER=pi make
+
 # Run all tests with race detection
 make test                    # Equivalent to: go test -race ./...
 
