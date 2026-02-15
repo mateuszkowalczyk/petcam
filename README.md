@@ -1,6 +1,6 @@
 # Petcam 🐶🐱
 
-Lightweight HLS streaming server for Raspberry Pi cameras.
+Keep an eye on your pets while you're away. A lightweight streaming server for Raspberry Pi cameras.
 
 ## Overview
 
