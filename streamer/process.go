@@ -20,10 +20,6 @@ type process struct {
 }
 
 func NewProcess(settings Settings) *process {
-	if settings.Command == "" {
-		settings.Command = "ffmpeg"
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &process{
@@ -43,20 +39,11 @@ func (p *process) Start() error {
 		return fmt.Errorf("cannot create directory %s: %v", p.settings.StreamPath, err)
 	}
 
-	cmd := exec.CommandContext(
-		p.ctx,
-		p.settings.Command,
-		"-f", "v4l2",
-		"-i", "/dev/video0",
-		"-c:v", "libx264",
-		"-preset", "veryfast",
-		"-tune", "zerolatency",
-		"-f", "hls",
-		"-hls_time", "1",
-		"-hls_list_size", strconv.Itoa(hlsListSize),
-		"-hls_flags", "delete_segments",
-		"-hls_base_url", p.settings.HlsBaseURL,
-		p.settings.PlaylistPath,
+	cmd := exec.CommandContext(p.ctx, p.settings.Command)
+	cmd.Env = append(os.Environ(),
+		"HLS_LIST_SIZE="+strconv.Itoa(hlsListSize),
+		"HLS_BASE_URL="+p.settings.HlsBaseURL,
+		"PLAYLIST_PATH="+p.settings.PlaylistPath,
 	)
 
 	if err := cmd.Start(); err != nil {

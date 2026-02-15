@@ -5,8 +5,18 @@ This file provides guidance for AI agents working with this Go codebase.
 ## Build, Lint & Test Commands
 
 ```bash
-# Build for ARM Linux (Raspberry Pi deployment)
-make
+# Build and run locally (uses v4l2 ffmpeg)
+make run                     # Builds and starts the server immediately
+
+# Build for local development without running (uses v4l2 ffmpeg)
+make dev                     # Creates scripts/stream.sh and petcam binary
+./petcam                     # Run the server manually (can run multiple times)
+
+# Clean up local build artifacts
+make clean                   # Removes petcam and scripts/stream.sh
+
+# Build for ARM Linux (Raspberry Pi deployment) - uses rpicam-vid
+make                         # Builds ARM binary, deploys to rpi:~/petcam/, cleans up locally
 
 # Run all tests with race detection
 make test                    # Equivalent to: go test -race ./...
@@ -35,6 +45,10 @@ go vet ./...
   - `process.go` - FFmpeg process wrapper
   - `settings.go` - Configuration struct
   - `*_test.go` - Test files
+- `scripts/` - Shell scripts for streaming commands
+  - `stream_pi.sh` - Raspberry Pi camera pipeline (rpicam-vid + ffmpeg)
+  - `stream_dev.sh` - Development stream (v4l2 + ffmpeg)
+  - `stream.sh` - Generated script (not in repo, created by Makefile)
 - `Makefile` - Build automation for ARM cross-compilation
 - `go.mod` - Go 1.25.6, no external dependencies
 
@@ -141,3 +155,4 @@ Before committing changes:
 3. Run `go test -race ./...` - all tests pass
 4. Run specific tests for modified packages
 5. Verify build: `go build`
+6. Ensure `scripts/stream_dev.sh` and `scripts/stream_pi.sh` are executable: `chmod +x scripts/stream_dev.sh scripts/stream_pi.sh`

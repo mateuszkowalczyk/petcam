@@ -1,0 +1,9 @@
+# Generated streaming script
+scripts/stream.sh
+
+# Binary
+petcam
+
+# Test artifacts
+*.test
+*.out

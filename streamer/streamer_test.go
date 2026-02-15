@@ -15,9 +15,8 @@ func TestSingleUserFlow(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a fake FFmpeg that creates 4 segment files and stays running
-	// Use ${!#} to get the last argument (playlist path) reliably
-	fakeScript := `PLAYLIST_PATH="${!#}"
-STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+	// Uses environment variables passed by process.go
+	fakeScript := `STREAM_DIR=$(dirname "$PLAYLIST_PATH")
 mkdir -p "$STREAM_DIR"
 touch "$STREAM_DIR/segment_0.ts"
 touch "$STREAM_DIR/segment_1.ts"
@@ -66,8 +65,7 @@ func TestMultipleUsersSimultaneous(t *testing.T) {
 	// 2. Increments an invocation counter (to track how many times it was started)
 	// 3. Writes its PID to track unique processes
 	pidFile := filepath.Join(tempDir, "process.pid")
-	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
-STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+	fakeScript := fmt.Sprintf(`STREAM_DIR=$(dirname "$PLAYLIST_PATH")
 mkdir -p "$STREAM_DIR"
 touch "$STREAM_DIR/segment_0.ts"
 touch "$STREAM_DIR/segment_1.ts"
@@ -150,8 +148,7 @@ func TestUserReconnectBeforeTimeout(t *testing.T) {
 	pidFile := filepath.Join(tempDir, "process.pid")
 
 	// Create a fake FFmpeg that writes its PID on startup
-	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
-STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+	fakeScript := fmt.Sprintf(`STREAM_DIR=$(dirname "$PLAYLIST_PATH")
 mkdir -p "$STREAM_DIR"
 touch "$STREAM_DIR/segment_0.ts"
 touch "$STREAM_DIR/segment_1.ts"
@@ -217,8 +214,7 @@ func TestUserReconnectAfterTimeout(t *testing.T) {
 	pidFile := filepath.Join(tempDir, "process.pid")
 
 	// Create a fake FFmpeg that writes its PID and timestamp on startup
-	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
-STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+	fakeScript := fmt.Sprintf(`STREAM_DIR=$(dirname "$PLAYLIST_PATH")
 mkdir -p "$STREAM_DIR"
 touch "$STREAM_DIR/segment_0.ts"
 touch "$STREAM_DIR/segment_1.ts"
@@ -284,8 +280,7 @@ func TestAppShutdownWhileStreaming(t *testing.T) {
 	pidFile := filepath.Join(tempDir, "process.pid")
 
 	// Create a fake FFmpeg that writes its PID and stays running
-	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
-STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+	fakeScript := fmt.Sprintf(`STREAM_DIR=$(dirname "$PLAYLIST_PATH")
 mkdir -p "$STREAM_DIR"
 touch "$STREAM_DIR/segment_0.ts"
 touch "$STREAM_DIR/segment_1.ts"
@@ -343,8 +338,7 @@ func TestFFmpegCrashRecovery(t *testing.T) {
 	tempDir := t.TempDir()
 	pidFile := filepath.Join(tempDir, "process.pid")
 
-	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
-STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+	fakeScript := fmt.Sprintf(`STREAM_DIR=$(dirname "$PLAYLIST_PATH")
 mkdir -p "$STREAM_DIR"
 touch "$STREAM_DIR/segment_0.ts"
 touch "$STREAM_DIR/segment_1.ts"

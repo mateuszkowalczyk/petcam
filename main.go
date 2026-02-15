@@ -33,6 +33,7 @@ func main() {
 			PlaylistPath:      playlistPath,
 			HlsBaseURL:        hlsBaseURL,
 			InactivityTimeout: 30 * time.Second,
+			Command:           filepath.Join("scripts", "stream.sh"),
 		})
 	streamer.Start()
 
