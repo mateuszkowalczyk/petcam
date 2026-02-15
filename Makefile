@@ -11,9 +11,11 @@ build-arm:
 	GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o petcam
 
 deploy:
+	sed 's/@REMOTE_USER@/$(REMOTE_USER)/g' scripts/petcam.service.template > scripts/petcam.service
 	ssh $(REMOTE) mkdir -p ~/petcam/scripts
 	scp petcam $(REMOTE):~/petcam/
 	scp scripts/stream.sh $(REMOTE):~/petcam/scripts/
+	scp scripts/petcam.service $(REMOTE):~/petcam/scripts/
 
 dev:
 	cp scripts/stream_dev.sh scripts/stream.sh
@@ -23,7 +25,7 @@ run: dev
 	./petcam
 
 clean:
-	rm -f petcam scripts/stream.sh
+	rm -f petcam scripts/stream.sh scripts/petcam.service
 
 test:
 	go test -race ./...

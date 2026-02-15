@@ -62,6 +62,39 @@ Or run on a different port:
 ~/petcam/petcam -port 3000
 ```
 
+### Running as a System Service
+
+To have petcam start automatically at boot and restart on crashes:
+
+```bash
+# Install the systemd service
+sudo cp ~/petcam/scripts/petcam.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Enable and start the service
+sudo systemctl enable petcam.service
+sudo systemctl start petcam.service
+
+# Check status
+sudo systemctl status petcam
+```
+
+**View logs:**
+
+```bash
+journalctl -u petcam -f              # Live logs
+journalctl -u petcam --since today   # Today's logs
+journalctl -u petcam -n 50           # Last 50 lines
+```
+
+**Manage the service:**
+
+```bash
+sudo systemctl stop petcam             # Stop service
+sudo systemctl restart petcam          # Restart service
+sudo systemctl disable petcam          # Disable auto-start
+```
+
 ## Usage
 
 Once running, open `http://localhost:8080/` to get the HLS playlist, or use with any HLS player:
@@ -83,13 +116,13 @@ Benefits: No port forwarding, automatic encryption, works behind NAT.
 
 ## Commands
 
-| Command      | Description                      |
-| ------------ | -------------------------------- |
-| `make run`   | Build and run locally            |
-| `make dev`   | Build for local development      |
-| `make`       | Build and deploy to Raspberry Pi |
-| `make test`  | Run tests with race detection    |
-| `make clean` | Remove build artifacts           |
+| Command      | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `make run`   | Build and run locally                                    |
+| `make dev`   | Build for local development                              |
+| `make`       | Build and deploy (binary + service file) to Raspberry Pi |
+| `make test`  | Run tests with race detection                            |
+| `make clean` | Remove build artifacts                                   |
 
 ## Project Structure
 
@@ -99,9 +132,10 @@ Benefits: No port forwarding, automatic encryption, works behind NAT.
 │   ├── streamer.go      # Stream lifecycle management
 │   ├── process.go       # FFmpeg wrapper
 │   └── settings.go      # Configuration
-├── scripts/             # Streaming shell scripts
-│   ├── stream_pi.sh     # Raspberry Pi streaming
-│   └── stream_dev.sh    # Development streaming
+├── scripts/                     # Streaming shell scripts and systemd service
+│   ├── stream_pi.sh             # Raspberry Pi streaming
+│   ├── stream_dev.sh            # Development streaming
+│   └── petcam.service.template  # Systemd service template
 └── Makefile             # Build automation
 ```
 

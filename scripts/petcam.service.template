@@ -1,0 +1,14 @@
+[Unit]
+Description=Petcam HLS streaming server
+After=network.target
+
+[Service]
+Type=simple
+User=@REMOTE_USER@
+WorkingDirectory=/home/@REMOTE_USER@/petcam
+ExecStart=/home/@REMOTE_USER@/petcam/petcam
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
