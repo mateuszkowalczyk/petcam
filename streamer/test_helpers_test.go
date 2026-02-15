@@ -63,23 +63,3 @@ func waitForFile(t *testing.T, path string, timeout time.Duration) error {
 		}
 	}
 }
-
-// waitForCondition polls a condition function until it returns true or timeout expires.
-func waitForCondition(t *testing.T, condition func() bool, timeout time.Duration) bool {
-	t.Helper()
-
-	deadline := time.After(timeout)
-	ticker := time.NewTicker(5 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-deadline:
-			return false
-		case <-ticker.C:
-			if condition() {
-				return true
-			}
-		}
-	}
-}
