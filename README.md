@@ -4,7 +4,7 @@ Keep an eye on your pets while you're away. A lightweight streaming server for R
 
 ## Overview
 
-Petcam captures video from a CSI camera (Raspberry Pi Camera Module) and streams it over HTTP using HLS (HTTP Live Streaming). It automatically starts streaming when someone connects and stops after a period of inactivity.
+Petcam captures video from a CSI camera (Raspberry Pi Camera Module) and streams it over HTTP using HLS (HTTP Live Streaming). It automatically starts streaming when someone connects and stops after a period of inactivity. Can run as a standalone process or as a systemd service for automatic startup and crash recovery.
 
 ## Features
 
@@ -12,6 +12,7 @@ Petcam captures video from a CSI camera (Raspberry Pi Camera Module) and streams
 - **Auto-stop**: Automatically stops after 30 seconds of inactivity
 - **HLS delivery**: Compatible with any browser or HLS player
 - **Hardware acceleration**: Uses `rpicam-vid` with built-in hardware acceleration on Pi
+- **Systemd service**: Includes systemd service template for automatic startup at boot and crash recovery
 
 ## Requirements
 
