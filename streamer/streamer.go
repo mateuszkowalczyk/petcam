@@ -67,12 +67,14 @@ func (s *Streamer) Wait() error {
 
 // EnsureStreaming ensures the stream is active or starts it if necessary.
 // Blocks until streaming is established. It must be called after Start.
-// Returns immediately if Stop() has been called.
+// Returns immediately if Stop() has been called or if an error occurs.
 func (s *Streamer) EnsureStreaming() {
 	s.keepAlive <- struct{}{}
 	select {
 	case <-s.streamingAlive:
 	case <-s.stop:
+	case <-s.stopped:
+		// Streamer stopped (possibly due to error)
 	}
 }
 

@@ -335,3 +335,79 @@ sleep 300
 		t.Fatalf("streamer reported error during shutdown: %v", stopErr)
 	}
 }
+
+// TestFFmpegCrashRecovery verifies that when FFmpeg crashes unexpectedly,
+// the next HTTP request starts a fresh process.
+// This simulates the camera disconnecting or FFmpeg failing.
+func TestFFmpegCrashRecovery(t *testing.T) {
+	tempDir := t.TempDir()
+	pidFile := filepath.Join(tempDir, "process.pid")
+
+	fakeScript := fmt.Sprintf(`PLAYLIST_PATH="${!#}"
+STREAM_DIR=$(dirname "$PLAYLIST_PATH")
+mkdir -p "$STREAM_DIR"
+touch "$STREAM_DIR/segment_0.ts"
+touch "$STREAM_DIR/segment_1.ts"
+touch "$STREAM_DIR/segment_2.ts"
+touch "$STREAM_DIR/segment_3.ts"
+echo $$ > "%s"
+# Must stay alive long enough for waitForStart() to verify files exist (process.Start()
+# waits for 4 files), then crash to simulate runtime failure (camera disconnect, etc)
+sleep 0.3
+exit 1
+`, pidFile)
+	fakeCmd := createFakeFFmpeg(t, tempDir, fakeScript)
+
+	settings := Settings{
+		StreamPath:        filepath.Join(tempDir, "stream"),
+		PlaylistPath:      filepath.Join(tempDir, "stream", "playlist.m3u8"),
+		HlsBaseURL:        "/segments/",
+		InactivityTimeout: 10 * time.Second,
+		Command:           fakeCmd,
+	}
+
+	s := NewStreamer(settings)
+	s.Start()
+
+	s.EnsureStreaming()
+
+	if err := waitForFile(t, pidFile, 500*time.Millisecond); err != nil {
+		t.Fatalf("stream didn't start: %v", err)
+	}
+
+	firstPIDBytes, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("could not read PID file: %v", err)
+	}
+	firstPID := string(firstPIDBytes)
+
+	// Wait for the fake FFmpeg to crash (sleeps 300ms then exits with error)
+	time.Sleep(500 * time.Millisecond)
+
+	// Remove the old PID file so we can detect when the NEW process writes its PID
+	if err := os.Remove(pidFile); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("failed to remove PID file: %v", err)
+	}
+
+	s.EnsureStreaming()
+
+	if err := waitForFile(t, pidFile, 500*time.Millisecond); err != nil {
+		t.Fatalf("new stream didn't start after crash: %v", err)
+	}
+
+	secondPIDBytes, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("could not read PID file after reconnect: %v", err)
+	}
+	secondPID := string(secondPIDBytes)
+
+	// Different PIDs prove that crash recovery worked: the old process died and a new one was started
+	if firstPID == secondPID {
+		t.Errorf("expected new process after crash, but got same PID (old: %s, new: %s)", firstPID, secondPID)
+	}
+
+	s.Stop()
+	if err := s.Wait(); err != nil {
+		t.Fatalf("streamer reported error: %v", err)
+	}
+}
