@@ -22,11 +22,15 @@ Petcam captures video from a CSI camera (Raspberry Pi Camera Module) and streams
 
 ### Development (Linux or macOS)
 
+Builds for local development using your webcam (V4L2 on Linux, AVFoundation on macOS) and starts the server:
+
 ```bash
 make run
 ```
 
-### Deploy to Raspberry Pi
+This compiles the binary and immediately starts the server on port 8080.
+
+### Build and Deploy to Raspberry Pi
 
 Prerequisites on the Pi:
 
@@ -44,6 +48,18 @@ Deploy to a different host:
 
 ```bash
 make REMOTE_HOST=raspberrypi.local REMOTE_USER=pi
+```
+
+After deploying, SSH into the Pi and run:
+
+```bash
+~/petcam/petcam
+```
+
+Or run on a different port:
+
+```bash
+~/petcam/petcam -port 3000
 ```
 
 ## Usage

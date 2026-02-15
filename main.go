@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,17 +15,21 @@ import (
 )
 
 const (
-	basePath   = "/dev/shm"
-	hlsBaseURL = "/segments/"
-	address    = ":8080"
+	basePath    = "/dev/shm"
+	hlsBaseURL  = "/segments/"
+	defaultPort = "8080"
 )
 
 var (
+	port         = flag.String("port", defaultPort, "HTTP server port")
 	streamPath   = filepath.Join(basePath, "stream")
 	playlistPath = filepath.Join(streamPath, "playlist.m3u8")
 )
 
 func main() {
+	flag.Parse()
+	address := ":" + *port
+
 	fmt.Println("this is petcam 🐶🐱")
 
 	streamer := streamer.NewStreamer(
