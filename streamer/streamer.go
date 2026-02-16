@@ -101,6 +101,7 @@ func (s *Streamer) streamLoop() {
 			if s.process != nil {
 				log.Println("stopping streaming process due to inactivity...")
 				s.process.Stop()
+				s.process = nil
 			}
 		case <-s.processDone():
 			s.process = nil
