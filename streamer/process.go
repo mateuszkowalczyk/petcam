@@ -1,33 +1,27 @@
 package streamer
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 	"time"
 )
 
 type process struct {
 	settings Settings
 
-	ctx     context.Context
-	cancel  context.CancelFunc
+	cmd     *exec.Cmd
 	stopped chan struct{}
 }
 
 func NewProcess(settings Settings) *process {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	return &process{
 		settings: settings,
-
-		ctx:     ctx,
-		cancel:  cancel,
-		stopped: make(chan struct{}, 1),
+		stopped:  make(chan struct{}, 1), // why buffered if we use close?
 	}
 }
 
@@ -39,7 +33,10 @@ func (p *process) Start() error {
 		return fmt.Errorf("cannot create directory %s: %v", p.settings.StreamPath, err)
 	}
 
-	cmd := exec.CommandContext(p.ctx, p.settings.Command)
+	cmd := exec.Command(p.settings.Command)
+	// Run in a new process group so children (e.g., rpicam-vid, ffmpeg) can be killed together.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	cmd.Env = append(os.Environ(),
 		"HLS_LIST_SIZE="+strconv.Itoa(hlsListSize),
 		"HLS_BASE_URL="+p.settings.HlsBaseURL,
@@ -49,6 +46,7 @@ func (p *process) Start() error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("cannot start streaming process: %v", err)
 	}
+	p.cmd = cmd
 
 	go func() {
 		// use Wait() in case the process is killed externally
@@ -56,7 +54,6 @@ func (p *process) Start() error {
 			log.Printf("streaming process stopped: %v\n", err)
 		}
 
-		p.cancel()
 		p.removeStreamDirectory()
 		close(p.stopped)
 	}()
@@ -65,16 +62,19 @@ func (p *process) Start() error {
 }
 
 func (p *process) Stop() {
-	if p.ctx.Err() != nil {
-		return
+	// SIGKILL with negative PID terminates the entire process group.
+	// This ensures all children spawned by the shell script (e.g., rpicam-vid, ffmpeg)
+	// are terminated.
+	if p.cmd != nil && p.cmd.Process != nil {
+		if err := syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL); err != nil {
+			log.Printf("failed to send SIGKILL: %v\n", err)
+		}
 	}
-
-	p.cancel()
 	<-p.stopped
 }
 
 func (p *process) Done() <-chan struct{} {
-	return p.ctx.Done()
+	return p.stopped
 }
 
 func (p *process) removeStreamDirectory() {
