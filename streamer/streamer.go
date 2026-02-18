@@ -1,4 +1,5 @@
-// Package streamer manages HLS video streaming from the Raspberry Pi camera using FFmpeg.
+// Package streamer manages HLS video streaming from the Raspberry Pi camera
+// using FFmpeg and rpicam-vid, the latter providing hardware acceleration.
 // It provides lifecycle management with automatic cleanup and inactivity timeout.
 package streamer
 
