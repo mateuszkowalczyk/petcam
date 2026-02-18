@@ -42,7 +42,8 @@ sudo apt install ffmpeg
 Deploys to `mk@rpi` by default:
 
 ```bash
-make                    # Builds and deploys to rpi:~/petcam/
+# Builds and deploys to rpi:~/petcam/
+make
 ```
 
 Deploy to a different host:
@@ -106,7 +107,7 @@ ffplay http://localhost:8080/
 
 ## Remote Access
 
-The easiest and most secure way to access the camera from outside your network is using **Tailscale**:
+The easy and secure way to access the camera from outside your network is using **Tailscale**:
 
 1. Install Tailscale on the Pi: `curl -fsSL https://tailscale.com/install.sh | sh`
 2. Start Tailscale: `sudo tailscale up`
