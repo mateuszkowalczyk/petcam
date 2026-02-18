@@ -7,7 +7,7 @@ package streamer
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -89,7 +89,7 @@ func (s *Streamer) streamLoop() {
 		select {
 		case <-s.keepAlive:
 			if s.process == nil {
-				log.Println("starting streaming process...")
+				slog.Info("starting streaming process...")
 				s.process = NewProcess(s.settings)
 				if err := s.process.Start(); err != nil {
 					s.err = fmt.Errorf("cannot start streaming process: %w", err)
@@ -100,7 +100,7 @@ func (s *Streamer) streamLoop() {
 			s.streamingAlive <- struct{}{}
 		case <-time.After(s.settings.InactivityTimeout):
 			if s.process != nil {
-				log.Println("stopping streaming process due to inactivity...")
+				slog.Info("stopping streaming process due to inactivity...")
 				s.process.Stop()
 				s.process = nil
 			}

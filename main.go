@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,6 +30,9 @@ func main() {
 	flag.Parse()
 	address := ":" + *port
 
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	slog.SetDefault(logger)
+
 	fmt.Println("this is petcam 🐶🐱")
 
 	streamer := streamer.NewStreamer(
@@ -44,7 +47,8 @@ func main() {
 
 	go func() {
 		if err := streamer.Wait(); err != nil {
-			log.Fatalf("streamer error: %v\n", err)
+			slog.Error("streamer error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -57,7 +61,8 @@ func main() {
 	go func() {
 		if err := http.ListenAndServe(address, nil); err != nil {
 			streamer.Stop()
-			log.Fatalf("server error: %v\n", err)
+			slog.Error("server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 	fmt.Printf("listening on: %v\n", address)

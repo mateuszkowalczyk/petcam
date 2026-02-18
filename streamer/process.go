@@ -3,7 +3,7 @@ package streamer
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strconv"
@@ -49,9 +49,8 @@ func (p *process) Start() error {
 	p.cmd = cmd
 
 	go func() {
-		// use Wait() in case the process is killed externally
 		if err := cmd.Wait(); err != nil {
-			log.Printf("streaming process stopped: %v\n", err)
+			slog.Info("streaming process stopped", "err", err)
 		}
 
 		p.removeStreamDirectory()
@@ -67,7 +66,7 @@ func (p *process) Stop() {
 	// are terminated.
 	if p.cmd != nil && p.cmd.Process != nil {
 		if err := syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL); err != nil {
-			log.Printf("failed to send SIGKILL: %v\n", err)
+			slog.Warn("failed to send SIGKILL", "err", err)
 		}
 	}
 	<-p.stopped
@@ -79,7 +78,7 @@ func (p *process) Done() <-chan struct{} {
 
 func (p *process) removeStreamDirectory() {
 	if err := os.RemoveAll(p.settings.StreamPath); err != nil {
-		log.Printf("couldn't remove stream directory: %v\n", err)
+		slog.Warn("couldn't remove stream directory", "err", err)
 	}
 }
 
