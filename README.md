@@ -19,6 +19,10 @@ Petcam captures video from a CSI camera (Raspberry Pi Camera Module) and streams
 - Raspberry Pi: `rpicam-vid` (libcamera), FFmpeg
 - Local dev: Go 1.25+, FFmpeg, Webcam (V4L2 on Linux, AVFoundation on macOS)
 
+## Tested Hardware
+
+- Raspberry Pi Zero 2 W
+
 ## Quick Start
 
 ### Development (Linux or macOS)
