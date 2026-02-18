@@ -22,6 +22,7 @@ const (
 
 var (
 	port         = flag.String("port", defaultPort, "HTTP server port")
+	ledName      = flag.String("led", "", "LED name in /sys/class/leds/ (e.g., 'ACT'), empty to disable LED control")
 	streamPath   = filepath.Join(basePath, "stream")
 	playlistPath = filepath.Join(streamPath, "playlist.m3u8")
 )
@@ -42,6 +43,7 @@ func main() {
 			HlsBaseURL:        hlsBaseURL,
 			InactivityTimeout: 30 * time.Second,
 			Command:           filepath.Join("scripts", "stream.sh"),
+			LEDName:           *ledName,
 		})
 	streamer.Start()
 

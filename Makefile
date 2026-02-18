@@ -16,6 +16,7 @@ deploy:
 	scp petcam $(REMOTE):~/petcam/
 	scp scripts/stream.sh $(REMOTE):~/petcam/scripts/
 	scp scripts/petcam.service $(REMOTE):~/petcam/scripts/
+	scp scripts/set_led_permissions.sh $(REMOTE):~/petcam/scripts/
 
 dev:
 	cp scripts/stream_dev.sh scripts/stream.sh

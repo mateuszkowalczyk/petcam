@@ -48,12 +48,17 @@ func (p *process) Start() error {
 	}
 	p.cmd = cmd
 
+	turnOnLED(p.settings.LEDName)
+
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			slog.Info("streaming process stopped", "err", err)
 		}
 
 		p.removeStreamDirectory()
+
+		turnOffLED(p.settings.LEDName)
+
 		close(p.stopped)
 	}()
 
