@@ -1,0 +1,31 @@
+#!/bin/bash
+set -eo pipefail
+
+# 1. Persist LED control at boot (only for ACT LED)
+if [ "@LED_NAME@" = "ACT" ]; then
+  echo 'dtparam=act_led_trigger=none' | sudo tee -a /boot/firmware/config.txt
+fi
+
+# 2. Create a systemd service for LED permissions
+sudo tee /etc/systemd/system/led-perm.service >/dev/null <<'EOF'
+[Unit]
+Description=Set @LED_NAME@ LED permissions
+
+[Service]
+Type=oneshot
+ExecStart=/bin/chmod 666 /sys/class/leds/@LED_NAME@/brightness
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 3. Enable the LED permissions service
+sudo systemctl enable led-perm.service
+
+# 4. Copy and install the petcam service
+sudo cp ~/petcam/scripts/petcam.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable petcam.service
+
+echo "Installation complete! Rebooting to apply LED permissions..."
+sudo reboot
