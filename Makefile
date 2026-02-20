@@ -14,7 +14,7 @@ build-arm:
 deploy:
 	sed 's/@REMOTE_USER@/$(REMOTE_USER)/g; s/@LED_NAME@/$(LED_NAME)/g' scripts/petcam.service.template > scripts/petcam.service
 	sed 's/@LED_NAME@/$(LED_NAME)/g' scripts/install.sh.template > scripts/install.sh
-	chmod +x scripts/install.sh scripts/uninstall.sh
+	chmod +x scripts/install.sh
 	ssh $(REMOTE) mkdir -p ~/petcam/scripts
 	scp petcam $(REMOTE):~/petcam/
 	scp scripts/stream.sh $(REMOTE):~/petcam/scripts/
