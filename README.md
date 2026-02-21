@@ -118,8 +118,6 @@ make LED_NAME=led0
 
 The Makefile will automatically replace `ACT` with your LED name in both the service file and the LED permissions script.
 
-For LEDs other than ACT, you may need to manually edit the template to remove the `dtparam=act_led_trigger=none` line from `install.sh.template` before building.
-
 ## Usage
 
 Once running, open `http://localhost:8080/` to get the HLS playlist, or use with any HLS player:
