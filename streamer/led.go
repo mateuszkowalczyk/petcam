@@ -30,12 +30,10 @@ func setLED(ledName string, value int) {
 	}
 }
 
-// turnOnLED turns on the specified LED.
 func turnOnLED(ledName string) {
 	setLED(ledName, 1)
 }
 
-// turnOffLED turns off the specified LED.
 func turnOffLED(ledName string) {
 	setLED(ledName, 0)
 }

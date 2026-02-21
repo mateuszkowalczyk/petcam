@@ -22,6 +22,13 @@ make                         # Builds ARM binary, deploys to rpi:~/petcam/, clea
 make REMOTE_HOST=pi REMOTE_USER=pi    # Deploy to pi@pi instead of default mk@rpi
 # Or set environment variables: REMOTE_HOST=pi REMOTE_USER=pi make
 
+# Deploy with a different LED
+make LED_NAME=led0                    # Use a different LED (default: ACT)
+# Or set environment variable: LED_NAME=led0 make
+
+# After deploying, run the install script on the Pi
+~/petcam/scripts/install.sh           # Sets up LED permissions and installs systemd service
+
 # Run all tests with race detection
 make test                    # Equivalent to: go test -race ./...
 
@@ -48,11 +55,17 @@ go vet ./...
   - `streamer.go` - Core streaming logic with goroutine management
   - `process.go` - FFmpeg process wrapper
   - `settings.go` - Configuration struct
+  - `led.go` - LED control functions
   - `*_test.go` - Test files
 - `scripts/` - Shell scripts for streaming commands
   - `stream_pi.sh` - Raspberry Pi camera pipeline (rpicam-vid + ffmpeg)
   - `stream_dev.sh` - Development stream (v4l2 + ffmpeg)
   - `stream.sh` - Generated script (not in repo, created by Makefile)
+  - `install.sh.template` - Installation script template (sets up LED + systemd service)
+  - `install.sh` - Generated install script (not in repo)
+  - `uninstall.sh` - Uninstall script (removes services)
+  - `petcam.service.template` - Systemd service template
+  - `petcam.service` - Generated service file (not in repo)
 - `Makefile` - Build automation for ARM cross-compilation
 - `go.mod` - Go 1.25.6, no external dependencies
 
@@ -69,6 +82,7 @@ go vet ./...
 - Group imports: standard library first, then third-party, then local
 - Use blank line between import groups
 - Example:
+
   ```go
   import (
       "fmt"
@@ -159,4 +173,4 @@ Before committing changes:
 3. Run `go test -race ./...` - all tests pass
 4. Run specific tests for modified packages
 5. Verify build: `go build`
-6. Ensure `scripts/stream_dev.sh` and `scripts/stream_pi.sh` are executable: `chmod +x scripts/stream_dev.sh scripts/stream_pi.sh`
+6. Verify template files have correct placeholders: `install.sh.template` and `petcam.service.template` should use `@LED_NAME@`

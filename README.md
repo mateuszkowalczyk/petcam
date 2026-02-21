@@ -13,6 +13,7 @@ Petcam captures video from a CSI camera (Raspberry Pi Camera Module) and streams
 - **HLS delivery**: Compatible with any browser or HLS player
 - **Hardware acceleration**: Uses `rpicam-vid` with built-in hardware acceleration on Pi
 - **Systemd service**: Includes systemd service template for automatic startup at boot and crash recovery
+- **LED indicator**: Built-in LED lights up when camera is active (Raspberry Pi ACT LED by default)
 
 ## Requirements
 
@@ -50,40 +51,24 @@ Deploys to `mk@rpi` by default:
 make
 ```
 
-Deploy to a different host:
+Deploy to a different host or with a different LED:
 
 ```bash
 make REMOTE_HOST=raspberrypi.local REMOTE_USER=pi
+make LED_NAME=led0  # Use a different LED (default: ACT)
 ```
 
-After deploying, SSH into the Pi and run:
+After deploying, SSH into the Pi and run the install script (one-time setup):
 
 ```bash
-~/petcam/petcam
+~/petcam/scripts/install.sh
 ```
 
-Or run on a different port:
+This script will:
 
-```bash
-~/petcam/petcam -port 3000
-```
-
-### Running as a System Service
-
-To have petcam start automatically at boot and restart on crashes:
-
-```bash
-# Install the systemd service
-sudo cp ~/petcam/scripts/petcam.service /etc/systemd/system/
-sudo systemctl daemon-reload
-
-# Enable and start the service
-sudo systemctl enable petcam.service
-sudo systemctl start petcam.service
-
-# Check status
-sudo systemctl status petcam
-```
+1. Set up LED permissions (so petcam can control the LED without root)
+2. Install and enable the petcam systemd service
+3. Start the petcam service immediately
 
 **View logs:**
 
@@ -99,7 +84,29 @@ journalctl -u petcam -n 50           # Last 50 lines
 sudo systemctl stop petcam             # Stop service
 sudo systemctl restart petcam          # Restart service
 sudo systemctl disable petcam          # Disable auto-start
+~/petcam/scripts/uninstall.sh          # Remove services completely
 ```
+
+### LED Indicator (Raspberry Pi)
+
+The Raspberry Pi ACT LED can indicate when the camera is streaming. The install script automatically sets this up. The LED lights up when streaming starts and turns off when it stops.
+
+To run manually without LED control:
+
+````bash
+~/petcam/petcam             # LED control disabled (default)
+
+**Using a different LED:**
+
+To use a different LED (from `/sys/class/leds/`):
+
+```bash
+make LED_NAME=led0
+````
+
+The Makefile will automatically replace `ACT` with your LED name in both the service file and the LED permissions script.
+
+For LEDs other than ACT, you may need to manually edit the template to remove the `dtparam=act_led_trigger=none` line from `install.sh.template` before building.
 
 ## Usage
 
@@ -122,13 +129,14 @@ Benefits: No port forwarding, automatic encryption, works behind NAT.
 
 ## Commands
 
-| Command      | Description                                              |
-| ------------ | -------------------------------------------------------- |
-| `make run`   | Build and run locally                                    |
-| `make dev`   | Build for local development                              |
-| `make`       | Build and deploy (binary + service file) to Raspberry Pi |
-| `make test`  | Run tests with race detection                            |
-| `make clean` | Remove build artifacts                                   |
+| Command              | Description                                              |
+| -------------------- | -------------------------------------------------------- |
+| `make run`           | Build and run locally                                    |
+| `make dev`           | Build for local development                              |
+| `make`               | Build and deploy (binary + service file) to Raspberry Pi |
+| `make LED_NAME=led0` | Deploy using a different LED (default: ACT)              |
+| `make test`          | Run tests with race detection                            |
+| `make clean`         | Remove build artifacts                                   |
 
 ## Project Structure
 
@@ -137,11 +145,13 @@ Benefits: No port forwarding, automatic encryption, works behind NAT.
 ├── streamer/            # Streaming logic
 │   ├── streamer.go      # Stream lifecycle management
 │   ├── process.go       # FFmpeg wrapper
-│   └── settings.go      # Configuration
-├── scripts/                     # Streaming shell scripts and systemd service
-│   ├── stream_pi.sh             # Raspberry Pi streaming
-│   ├── stream_dev.sh            # Development streaming
-│   └── petcam.service.template  # Systemd service template
+│   ├── settings.go      # Configuration struct
+│   └── led.go           # LED control
+├── scripts/                               # Streaming shell scripts and systemd service
+│   ├── stream_pi.sh                       # Raspberry Pi streaming
+│   ├── stream_dev.sh                      # Development streaming
+│   ├── install.sh.template                # Installation script template
+│   ├── petcam.service.template            # Systemd service template
 └── Makefile             # Build automation
 ```
 
