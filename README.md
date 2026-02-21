@@ -66,9 +66,12 @@ After deploying, SSH into the Pi and run the install script (one-time setup):
 
 This script will:
 
-1. Set up LED permissions (so petcam can control the LED without root)
-2. Install and enable the petcam systemd service
-3. Start the petcam service immediately
+1. Disable default built-in LED behavior in config.txt file
+2. Create service that sets up LED permissions on system startup (so petcam can control the LED without root)
+3. Install and enable the petcam as a service
+4. Reboot Pi to apply changes from the config.txt file
+
+The petcam service will start automatically after reboot.
 
 **View logs:**
 

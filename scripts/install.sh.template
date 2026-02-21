@@ -19,13 +19,13 @@ ExecStart=/bin/chmod 666 /sys/class/leds/@LED_NAME@/brightness
 WantedBy=multi-user.target
 EOF
 
-# 3. Enable the LED permissions service
+sudo systemctl daemon-reload
 sudo systemctl enable led-perm.service
 
-# 4. Copy and install the petcam service
+# 3. Create the petcam service
 sudo cp ~/petcam/scripts/petcam.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable petcam.service
 
-echo "Installation complete! Rebooting to apply LED permissions..."
+echo "Installation complete! Rebooting to apply config.txt changes..."
 sudo reboot
