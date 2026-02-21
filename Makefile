@@ -1,7 +1,9 @@
 REMOTE_USER ?= mk
 REMOTE_HOST ?= rpi
 LED_NAME ?= ACT
+
 REMOTE = $(REMOTE_USER)@$(REMOTE_HOST)
+LED_FLAGS = $(if $(LED_NAME),-led $(LED_NAME),)
 
 .PHONY: all dev run clean test
 
@@ -12,7 +14,7 @@ build-arm:
 	GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o petcam
 
 deploy:
-	sed 's/@REMOTE_USER@/$(REMOTE_USER)/g; s/@LED_NAME@/$(LED_NAME)/g' scripts/petcam.service.template > scripts/petcam.service
+	sed 's/@REMOTE_USER@/$(REMOTE_USER)/g; s/@LED_FLAGS@/$(LED_FLAGS)/g' scripts/petcam.service.template > scripts/petcam.service
 	sed 's/@LED_NAME@/$(LED_NAME)/g' scripts/install.sh.template > scripts/install.sh
 	chmod +x scripts/install.sh
 	ssh $(REMOTE) mkdir -p ~/petcam/scripts

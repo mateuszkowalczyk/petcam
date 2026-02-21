@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=@REMOTE_USER@
 WorkingDirectory=/home/@REMOTE_USER@/petcam
-ExecStart=/home/@REMOTE_USER@/petcam/petcam -led @LED_NAME@
+ExecStart=/home/@REMOTE_USER@/petcam/petcam @LED_FLAGS@
 Restart=on-failure
 RestartSec=5
 

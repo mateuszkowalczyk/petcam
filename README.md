@@ -94,10 +94,19 @@ sudo systemctl disable petcam          # Disable auto-start
 
 The Raspberry Pi ACT LED can indicate when the camera is streaming. The install script automatically sets this up. The LED lights up when streaming starts and turns off when it stops.
 
-To run manually without LED control:
+**Disable LED control:**
 
-````bash
+To deploy without LED control (skips LED permissions setup):
+
+```bash
+make LED_NAME=""
+```
+
+Or run manually without LED control:
+
+```bash
 ~/petcam/petcam             # LED control disabled (default)
+```
 
 **Using a different LED:**
 
@@ -105,7 +114,7 @@ To use a different LED (from `/sys/class/leds/`):
 
 ```bash
 make LED_NAME=led0
-````
+```
 
 The Makefile will automatically replace `ACT` with your LED name in both the service file and the LED permissions script.
 
@@ -138,6 +147,7 @@ Benefits: No port forwarding, automatic encryption, works behind NAT.
 | `make dev`           | Build for local development                              |
 | `make`               | Build and deploy (binary + service file) to Raspberry Pi |
 | `make LED_NAME=led0` | Deploy using a different LED (default: ACT)              |
+| `make LED_NAME=""`   | Deploy without LED control                               |
 | `make test`          | Run tests with race detection                            |
 | `make clean`         | Remove build artifacts                                   |
 
